@@ -1,61 +1,151 @@
-// Komponent React
-import React from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { addContact, removeContact, setFilter } from "./contactsSlice";
 
-function PhonebookApp() {
+
+import React, { useState, useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { addContact, deleteContact, setFilter, resetContacts } from './contactsSlice';
+import { nanoid } from 'nanoid';
+import './ContactApp.css';
+
+function ContactApp() {
+  const contacts = useSelector(state => state.contacts.contacts);
+  const filter = useSelector(state => state.contacts.filter);
   const dispatch = useDispatch();
-  const contacts = useSelector((state) => state.contacts.contacts);
-  const filter = useSelector((state) => state.contacts.filter);
+  const [surname, setSurname] = useState('');
+  const [number, setNumber] = useState('');
 
-  const handleAddContact = (newContact) => {
-    dispatch(addContact(newContact));
+  useEffect(() => {
+    const loadedContacts = loadContactsFromLocalStorage();
+    dispatch(resetContacts(loadedContacts)); 
+  }, [dispatch]);
+
+  useEffect(() => {
+    saveContactsToLocalStorage(contacts);
+  }, [contacts]);
+
+  const handleChange = (event, setterFunction, formatFunction) => {
+    const { value } = event.target;
+    if (formatFunction) {
+      const formattedValue = formatFunction(value);
+      setterFunction(formattedValue);
+    } else {
+      setterFunction(value);
+    }
   };
 
-  const handleRemoveContact = (contactId) => {
-    dispatch(removeContact(contactId));
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    const existingContact = contacts.find(
+      (contact) =>
+        contact.surname.toLowerCase() === surname.toLowerCase() &&
+        contact.number === number
+    );
+    if (existingContact) {
+      alert('Contact with the same surname and number already exists.');
+    } else {
+      const id = nanoid();
+      const newContact = { id, surname, number };
+      dispatch(addContact(newContact));
+      setSurname('');
+      setNumber('');
+    }
   };
 
-  const handleFilterChange = (e) => {
-    dispatch(setFilter(e.target.value));
+  const handleFilterChange = (event) => {
+    const { value } = event.target;
+    dispatch(setFilter(value));
   };
+
+  const handleDeleteContact = (id) => {
+    dispatch(deleteContact(id));
+  };
+
+  const handleResetContacts = () => {
+    if (window.confirm('Are you sure you want to delete all contacts? This action cannot be undone.')) {
+      dispatch(resetContacts([])); 
+    }
+  };
+
+  const formatPhoneNumber = (value) => {
+    const formattedValue = value.replace(/\D/g, '').slice(0, 9);
+    const formattedNumber = formattedValue.replace(/(\d{3})(\d{1,3})?(\d{1,3})?/, (_, p1, p2, p3) => {
+      let result = p1;
+      if (p2) result += '-' + p2;
+      if (p3) result += '-' + p3;
+      return result;
+    });
+    return formattedNumber;
+  };
+
+  const loadContactsFromLocalStorage = () => {
+    const storedContacts = localStorage.getItem('contacts');
+    return storedContacts ? JSON.parse(storedContacts) : [];
+  };
+
+  const saveContactsToLocalStorage = (contacts) => {
+    localStorage.setItem('contacts', JSON.stringify(contacts));
+  };
+
+  const filteredContacts = contacts.filter(
+    (contact) =>
+      contact.surname.toLowerCase().includes(filter.toLowerCase())
+  );
 
   return (
-    <div>
+    <div className="ContactApp">
       <h1>Phonebook</h1>
 
-      {/* Formularz dodawania kontaktu */}
-      <form onSubmit={handleAddContact}>
-        <input type="text" placeholder="Name" />
-        <input type="text" placeholder="Phone number" />
+      <form onSubmit={handleSubmit}>
+        <div className="form-section">
+          <label htmlFor='surname'>Name:</label>
+          <input
+           type="text"
+            id="surname"
+             name="surname"
+              placeholder='Jan Kowalski'
+               pattern="^[a-zA-Zа-яА-Я\s'-]*$"
+                title="Surname"
+                  required
+                  value={surname}
+                  onChange={(event) => handleChange(event, setSurname)}
+/>
+        </div>
+
+        <div className="form-section">
+          <label htmlFor="number">Phone Number:</label>
+          <input
+            type="text"
+            name="number"
+            placeholder='000-000-000'
+            title="Phone number"
+            required
+            value={number}
+            onChange={(event) => handleChange(event, setNumber, formatPhoneNumber)}
+          />
+        </div>
+
         <button type="submit">Add Contact</button>
       </form>
 
-      {/* Filtr */}
+      <h2>Contacts</h2>
       <input
         type="text"
-        placeholder="Search contacts..."
+        placeholder="Search by surname"
         value={filter}
         onChange={handleFilterChange}
       />
-
-      {/* Wyświetlanie kontaktów */}
       <ul>
-        {contacts
-          .filter((contact) =>
-            contact.name.toLowerCase().includes(filter.toLowerCase())
-          )
-          .map((contact) => (
-            <li key={contact.id}>
-              {contact.name}: {contact.phoneNumber}
-              <button onClick={() => handleRemoveContact(contact.id)}>
-                Remove
-              </button>
-            </li>
-          ))}
+        {filteredContacts.map((contact) => (
+          <li key={contact.id}>
+            {contact.surname}: {contact.number}{' '}
+            <button onClick={() => handleDeleteContact(contact.id)}>Delete</button>
+          </li>
+        ))}
       </ul>
+      <button className="reset-button" type="button" onClick={handleResetContacts}>
+        Reset Contacts
+      </button>
     </div>
   );
 }
 
-export default PhonebookApp;
+export default ContactApp;

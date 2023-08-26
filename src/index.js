@@ -1,11 +1,15 @@
+
+
 import React from 'react';
-import ReactDOM from 'react-dom/client';
+import ReactDOM from 'react-dom';
+import { Provider } from 'react-redux';
+import store from 'componentsv2/store';
 import './index.css';
 import ContactApp from 'componentsv2/ContactApp';
 
-
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-   <ContactApp/>
-  </React.StrictMode>
+ReactDOM.render(
+  <Provider store={store}>
+    <ContactApp />
+  </Provider>,
+  document.getElementById('root')
 );
